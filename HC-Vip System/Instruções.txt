@@ -1,0 +1,31 @@
+// Pasta Client:
+Contém o arquivo necessário para que os Cupons Vip funcionem corretamente.
+
+// Pasta Emulador:
+Estão os arquivos relacionados ao Emulador.
+------- Script
+------- Banco de Dados
+------- item_db2
+
+// Instalação
+----------------------------------------------------------------------------------
+|| 1º Passo:
+
+Instale o Script 'HD-Vip System.txt' que está na pasta 'Emulador' como qualquer outro NPC,
+lembrando de colocar nos arquivos de incializaçao dos Scripts.
+
+
+|| 2º Passo:
+Copie os dados que estão no arquivo item_db2.conf dentro da pasta 'Emulador/db' para a sua database de itens customizada.
+
+
+|| 3º Passo:
+
+Copie todo o conteúdo do arquivo abaixo que encontra-se na pasta Cliente e cole
+respectivamente no fim do arquivo de mesmo nome que se encontram na pasta System do seu Cliente.
+
+itemInfo.lub
+
+
+|| Último Passo:
+Importe o arquivo 'HD-Vip System.sql' que se encontra na pasta Emulador para sua database.

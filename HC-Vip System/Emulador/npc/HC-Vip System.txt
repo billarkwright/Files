@@ -1,0 +1,819 @@
+/*________________________________________________________
+ / 		         ____                                 	  \
+ | 		        |  __|     								  |
+ |		        | |_ _  _  __ _ _ __  _  __      		  |
+ |		        |  _| || |/ _` | '_ \| |/ _ \     		  |
+ | 		        | |__ \/ | (_| | | | | | (_) |     		  |
+ | 		        |____|__/ \__,_|_| |_|_|\___/     		  |
+ |                                                        |
+ |                                      				  |
+ |--------------------------------------------------------|
+ | Nome do Script: HC-Vip System                		  |
+ |--------------------------------------------------------|
+ | Criado por: Evanio (Arkwright)                         |
+ |--------------------------------------------------------|
+ | Versão 1.8                             				  |
+ |--------------------------------------------------------|
+ | Descrição: *Sistema Vip por horas corridas.     		  |
+ |          *Gerente Vip com várias funções úteis.        |
+ |    • Usuário Vip/Comum:     							  |
+ |        - Acesso a Sala Vip     						  |
+ |     - Loja ROPs     									  |
+ |     - Senha no Armazém     							  |
+ |        - Informações     							  |
+ |    • Administrador:     								  |
+ |     - Gerenciar Contas Vip     						  |
+ |     - Gerenciar CASH         						  |
+ |     - Gerenciar Loja ROPs     						  |
+ |     - Gerenciar Banimentos     						  |
+ |     - Gerenciar Staff         						  |
+ |--------------------------------------------------------|
+ | Obs: Aconselhável não usar o comando @reloadscript     |
+ |   quando o sistema já estiver ativo. Use-o somente     |
+ |   quando tiver certeza que não tenha nenhum jogador    |
+ |   VIP Online.     									  |
+ |--------------------------------------------------------|
+ | Changelog:                                             |
+ | 1.0 Script Criado (22/02/2014) [Evanio]                |
+ | 1.1 Add Sistema de Loja ROPs (23/02/2014) [Evanio]     |
+ | 1.2 Add Sistema de Vip Grátis (24/02/2014) [Evanio]    |
+ | 1.3 Add Bonus de XP e DROP (24/02/2014) [Evanio]       |
+ | 1.4 Add Sistema senha no armazém (24/02/2014) [Evanio] |
+ | 1.5 Add Cupons Vip (25/02/2014) [Evanio]     		  |
+ | 1.6 Add Vip por Dias (27/02/2014) [Evanio]     		  |
+ | 1.7 Att para o novo emulador (20/01/2015) [Evanio]     |
+ | 1.8 Mudado as variaveis globais (01/02/2015) [Evanio]  |
+ | 1.9 Corrigido problema CASHSHOP (07/03/2016) [Evanio]  |
+ \________________________________________________________/
+*/
+// ---------------------------------------------------------|
+/* -------------------- Tabelas SQL ------------------------|
+ 
+DROP TABLE IF EXISTS `cash_shop`;
+CREATE TABLE `cash_shop` (
+  `id` int(11) unsigned not null auto_increment,
+  `nameid` int(11) unsigned NOT NULL DEFAULT '0',
+  `price` int(11) unsigned NOT NULL DEFAULT '0',
+  `type` int(11) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM;
+ 
+ALTER TABLE `login` ADD `Vip` INT NOT NULL ;
+ 
+*/
+//-----------------------------------------------------------|
+//-----------------------------------------------------------|
+ 
+-	script	ConfVip	-1,{
+OnInit:
+		$@VipAc = 99;    					// Nível de conta que permite entrar no Gerenciamento. [ 4, 10 ou 99 ]
+		$@NvVip = 1;    					// Nível de conta para usuários Vip. [ 1 à 3 ]
+		$VipMode = 2;     					// Modo do Sistema VIP. [ 1 = Tempo Corrido , 2 = Contagem Diária ]
+		$@SalaVip$ = "prontera";     		// Mapa da Sala Vip. [ ,"mapa"; ]
+		setarray $@CoordXY[0],150,150;    	// Coordenadas da Sala Vip [ ,CoordX,CoordY; ]
+		$@VipGratis = 1;        			// Ativa Vip Grátis. [ 1 = Sim, 0 = Não ]
+		$@VipGDias = 5;        				// Dias para Vip Grátis.
+		$@ExpBonus = 0;        				// Ativa o Bonus de XP e Drop para usuários Vip. [ 1=Somente EXP, 2=Somente DROP, 3=EXP e DROP,  0=Desativado ]
+		setarray $@ExpRate[0],50,200;    	// Percentagem do Bonus de XP e Drop respectivamente. [ ,EXP,DROP; ] (PS: 200 é equivalente ao dobro de chances dos drops)
+		$@ChatVip = 1;        				// Ativa chat de indicação no NPC Gerente Vip. [ 1 = Sim, 0 = Não ]
+		$@ChatMsgsVip$ = "Gerente Vip";     // Mensagem no Chat que irá aparecer.
+		$@StorageVip = 0;    				// Possibilita o usuário VIP colocar senha no armazém/storage. [ 1 = Sim, 0 = Não ] (Somente use essa função se estver habilitado o comando @storage)
+ 
+}
+ 
+prontera,148,185,5	script	Gerente Vip	4_M_OILMAN,{
+ 
+		query_sql "SELECT `Vip` FROM `login` WHERE `account_id` = '"+getcharid(3)+"'", @dias;
+		query_sql ("SELECT `group_id` , `Vip` FROM `login` WHERE `account_id`='"+getcharid(3)+"'",@Out,@Vip);
+		mes "[ Gerente ]";
+		mes " Bem vindo ^EEAD2D"+strcharinfo(0)+"^000000 !";
+		mes "-----------------------------------";
+		if(#CASHPOINTS<=0) mes ""; 
+			else mes "Você atualmente possui ^EEAD2D"+#CASHPOINTS+"^000000 ROP's";
+		if(@Vip<=60 && @Vip>0) {
+			if(@Vip==1) mes "Você possui ^EEAD2D1^000000 minuto VIP restante.";
+					else mes "Você possui ^EEAD2D"+@Vip+"^000000 minutos VIP restantes.";
+		}
+		if(@Vip<=1440 && @Vip>60) {
+			@temp = @Vip/60;
+			if(@temp==1) mes "Você possui ^EEAD2D1^000000 Hora VIP restante.";
+					else mes "Você possui ^EEAD2D"+@temp+"^000000 Horas VIP restantes.";
+		}
+		if(@Vip>1440) {
+			@temp = @Vip/1440;
+			if(@temp==1) mes "Você possui ^EEAD2D1^000000 Dia VIP restante.";
+					else mes "Você possui ^EEAD2D"+@temp+"^000000 Dias VIP restantes.";
+		}
+		if(@Out<=0) {
+			mes "Vejo que você não é um usuário VIP.";
+			mes "Se está interessado em se tornar um usuário Vip, se informe melhor em nosso site.";
+		}
+		mes "-----------------------------------";
+		mes "Porfavor, escolha uma das opções.";
+		next;
+		@Menu$ = "Sala Vip:^FF4500Loja de ROP's^000000:"+(($@StorageVip==1)?"Senha no Armazém":"")+":Como obter ROP's:Cancelar:"+((getgmlevel()>=$@VipAc)?"Acesso ADM":"");
+		switch(select(@Menu$)){ 
+ 
+			case 1:
+				mes "[ Gerente ]";
+				if(getgroupid()<$@NvVip) {
+					mes "Você não é um usuário VIP."; mes "Se está interessado em se tornar um usuário Vip, se informe melhor em nosso site.";
+					close;
+				}
+				mes "Okay, estarei te teleportando para a Sala Vip neste exato momento.";
+				mes "Tenha uma boa estádia lá.";
+				close2;
+				warp $@SalaVip$,$@CoordXY[0],$@CoordXY[1];
+				end;
+ 
+			case 2:
+				mes "[ Gerente ]";
+				mes "Tudo bem, irei abrir a Loja de ROP's para você.";
+				close2;
+				callshop "cash_shop",1;
+				end;
+ 
+			case 3:
+				if(getgroupid()>=1 && getgroupid()<=3) {
+				if(#passstore==0) {
+					mes "[ Gerente ]";
+					mes "Bem-vindo as configurações do acesso ao armazém.";
+					mes "Vejo que você não possui uma senha para seu armazém.";
+					mes "o que deseja fazer?";
+					next;
+					if(select("Criar senha","Sair")==2) {
+						mes "[ Gerente ]";
+						mes "Caso mude de ideia estarei aqui para servi-lo.";
+						close;
+					}
+						mes "[ Gerente ]";
+						mes "Certo, preciso que você digite a senha que deseja criar.";
+						mes "Lembre-se, atualmente não temos como recuperar a senha caso você esqueça, então porfavor anote-a.";
+						next;
+						AgainPass:
+						mes "[ Gerente ]";
+						mes "Digite a senha que deseja utilizar.";
+						input @Senha$;
+						next;
+						mes "[ Gerente ]";
+						mes "Você digitou a senha:";
+						mes " ^FF4500"+@Senha$+"^000000 ";
+						mes "Ela está correta?";
+						next;
+						if(select("Sim","Não")==2) { goto AgainPass; }
+							mes "[ Gerente ]";
+							mes "Prontinho, senha de armazém adicionada.";
+							close2; #pass$ = @Senha$; #passstore = 1; end;
+						}
+						mes "[ Gerente ]";
+						mes "Bem-vindo as configurações do acesso ao armazém.";
+						mes "Vejo que você já possui uma senha para seu armazém.";
+						mes "o que deseja fazer?";
+						next;
+						switch(select("Mudar senha","Remover senha","Sair")) {
+ 
+							case 1:
+								mes "[ Gerente ]";
+								mes "Muito bem, para que eu possa mudar a sua senha do armazém, preciso que você me informe a sua antiga senha.";
+								next;
+								mes "[ Gerente ]";
+								mes "Digite a sua antiga senha.";
+								input @Senha$;
+								next;
+								if(@Senha$==#pass$) {
+									AgainPass2:
+									mes "[ Gerente ]";
+									mes "Tudo certo até o momento. Agora preciso que você digite a nova senha.";
+									next;
+									input @New$;
+									next;
+									mes "[ Gerente ]";
+									mes "Você digitou a senha:";
+									mes " ^FF4500"+@New$+"^000000 ";
+									mes "Ela está correta?";
+									next;
+									if(select("Sim","Não")==2) { goto AgainPass2; }
+										mes "[ Gerente ]";
+										mes "Senha alterada com sucesso!";
+										close2; #pass$ = @New$; end; }
+										mes "[ Gerente ]";
+										mes "A senha que você digitou não coincide com a sua senha de armazém atual.";
+										mes "Tente novamente mais tarde.";
+										close;
+ 
+							case 2:
+								mes "[ Gerente ]";
+								mes "Tem certeza que deseja remover a sua senha de armazém?";
+								next;
+								if(select("Sim","Não")==2) { mes "[ Gerente ]"; mes "Caso mude de ideia estarei aqui para servi-lo."; close; }
+									mes "[ Gerente ]";
+									mes "Prontinho, senha removida com sucesso.";
+									close2; #passstore = 0; end;
+ 
+							case 3:
+								mes "[ Gerente ]";
+								mes "Obrigado. Estarei sempre aqui quando precisar dos meus serviços.";
+								close;
+						}
+				}
+				
+				mes "[ Gerente ]";
+				mes "Usuários Vip podem optar por adicionar um ^EEAD2DCódigo^000000 no seu armazém caso preferir.";
+				mes "É um metódo de segurança extra, principalmente para usuários que ecessam por computadores de terceiros.";
+				next;
+				mes "[ Gerente ]";
+				mes "Para obter as vantagens de um usuário Vip, basta entrar em nosso site.";
+				mes "Lá você terá uma explicação mais detalhada de como se tornar um usuário Vip.";
+				close;
+ 
+			case 4:
+				mes "[ Gerente ]";
+				mes "Para obter ROP's, você terá que comprar em nosso site os pacotes disponível de ROP's.";
+				mes "Lá estará todas as informações de como você irá adiquirir e como será a forma de pagamento.";
+				next;
+				mes "[ Gerente ]";
+				mes "Também irá saber todas as vantagens de como é ser um usuário VIP e a lista de Itens ROP's disponíveis.";
+				mes "Há claro, você pode ver os itens ROP's disponíveis aqui comigo.";
+				mes "Basta selecionar a opção ^EEAD2D'Loja de ROP's'^000000 no menu principal.";
+				close;
+ 
+			case 5:
+				mes "[ Gerente ]";
+				mes "Sempre que precisar estarei aqui para lhe atender.";
+				mes "Obrigado e volte sempre!";
+				close;
+ 
+			case 6:
+				callfunc "Gerente#Syn",0;
+		}
+		
+OnInit:
+if($@ChatVip==1) { waitingroom $@ChatMsgsVip$,0; }
+}
+
+function	script	Gerente#Syn	{
+ 
+OnStartG:
+	if(getgroupid()>=$@VipAc) {
+		mes "[ Gerente ]";
+		mes "Olá "+strcharinfo(0)+".";
+		mes "Sou o Gerente de dados do Servidor. Meu trabalho é facilitar a vida do pessoal da Administração.";
+		mes "Porfavor, escolha a opção que você deseja executar.";
+		next;
+		switch(select("Gerenciar Vip's","Gerenciar CASH","Gerenciar Loja","Gerenciar Banimentos","Gerenciar Staff","Sair")) {
+ 
+			case 1:
+				mes "[ Gerente ]";
+				mes "Nessa área tenho total poder de manipular os dados de acesso VIP no servidor.";
+				mes "Basta você me indicar o que quer fazer que eu executo a ação.";
+				mes "Porfavor escolha uma das opções.";
+				next;
+				switch(select("Adicionar acesso Vip","Remover acesso Vip","Ver Contas VIP","Retornar ao menu principal")) {
+ 
+					case 1:
+						mes "[ Gerente ]";
+						mes "Ok, agora preciso coletar os dados da conta do usuário que você deseja adicionar o acesso.";
+						mes "Digite o Login da Conta à qual irei adicionar acesso Vip.";
+						next;
+						input .@Conta$;
+						query_sql ("SELECT `account_id` FROM `login` WHERE `userid`='"+.@Conta$+"'",.@ContaEx);
+						if(.@ContaEx==0) {
+							mes "^FF0000***ERROR***^000000";
+							mes " "; mes "Você não digitou uma conta válida."; 
+							mes " "; mes "^FF0000Fechando conexão^000000"; 
+							close; 
+						}
+						next;
+						mes "[ Gerente ]";
+						mes "Agora, digite a quantidade de dias que o usuário terá acesso Vip";
+						mes "Conta: ^FF0000"+.@Conta$+"^000000."; mes " ";
+						mes "^FF0000**Dica: Digite '0' para cancelar.^000000";
+						next;
+						input .@VipQ;
+						if(.@VipQ==0) {
+							mes "Ação cancelada.";
+							mes " ";
+							mes "^FF0000***Fechando conexão***^000000";
+							close;
+						}
+						.@amVip = .@VipQ*1440;
+						mes "[ Gerente ]";
+						mes "Tudo certo, processando os dados e adicionando os dias de acesso Vip.";
+						next;
+						mes "[ Gerente ]";
+						mes "Pronto, acesso adicionado!";
+						mes " ";
+						mes "Conta: ^FF0000"+.@Conta$+"^000000";
+						mes "Dias: ^FF0000"+.@VipQ+"^000000.";
+						query_sql ("SELECT `value` FROM `acc_reg_num_db` WHERE `key`='#VipOk' AND `account_id` = '"+.@ContaEx+"'",.@valor);
+						if(getarraysize(.@valor)) { query_sql "UPDATE `acc_reg_num_db` SET `value` = '"+$@NvVip+"' WHERE `key`='#VipOk' AND `account_id` = '"+.@ContaEx+"'";
+						}else{ query_sql "INSERT INTO `acc_reg_num_db` (`account_id`, `key`, `index`, `value`) VALUES ('"+.@ContaEx+"', '#VipOk', '0', '1')"; }
+						query_sql ("UPDATE `login` SET `group_id`='"+$@NvVip+"',`Vip`=`Vip`+"+.@amVip+" WHERE `userid`='"+.@Conta$+"'");
+						close;
+						
+					case 2:
+						mes "[ Gerente ]";
+						mes "Ok, agora preciso coletar os dados da conta do usuário que você deseja remover o acesso.";
+						mes "Digite o Login da Conta.";
+						next;
+						input @AccRet$;
+						query_sql ("SELECT `account_id` FROM `login` WHERE `userid`='"+@AccRet$+"'",.@NExiste);
+						if (!.@NExiste) {
+							mes "^FF0000***ERROR***^000000";
+							mes " "; 
+							mes "Você não digitou uma conta válida.";
+							mes " "; 
+							mes "^FF0000Fechando conexão^000000";
+							close; 
+						}
+						next;
+						mes "[ Gerente ]";
+						mes "Agora, digite a quantidade de dias que serão removidos do usuário Vip.";
+						mes "Conta: "+.@AccRet$+".";
+						mes "^FF0000**Dica: Digite '0' para cancelar.^000000";
+						next;
+						input .@QRem;
+						if(.@QRem==0) {
+							mes "Ação cancelada."; 
+							mes " "; 
+							mes "^FF0000***Fechando conexão***^000000"; 
+							close; 
+						}
+						mes "[ Gerente ]";
+						mes "Eu irei remover: ^FF0000"+.@QRem+"^000000 dias da conta: ^FF0000"+@AccRet$+"^000000.";
+						mes "Estes dados estão corretos?";
+						next;
+						if(select("Sim","Não")==1) {
+							mes "[ Gerente ]";
+							mes "Tudo certo, processando os dados e removendo os dias de acesso Vip";
+							mes " ";
+							mes " ";
+							mes "Comando efetuado com SUCESSO!";
+							close2;
+							.@RemDia = .@QRem*1440;
+							query_sql ("UPDATE `login` SET `Vip`=`Vip`-"+.@RemDia+" WHERE `userid`='"+@AccRet$+"'");
+							end;
+						}
+						mes "[ Gerente ]";
+						mes "Encerrando conexão...";
+						mes "Limpando dados...";
+						mes "Conexão encerrada!";
+						close;
+						
+					case 3:
+						query_sql("SELECT `userid` , `Vip` FROM `login` WHERE `group_id`= "+$@NvVip+" ",@Vips$,@dias);
+						for(@i = 0; @i < getarraysize(@Vips$); @i++){
+							mes "-----------------------------------";
+							mes "|-- ^FF0000"+@dias[@i]/1440+"^000000 Dias --> Conta: ^FF0000"+@Vips$[@i]+"^000000 "; 
+						}
+							close;
+		
+					case 4: goto OnStartG;
+				}
+				
+			case 2:
+				mes "[ Gerente ]";
+				mes "Nessa área tenho total poder de manipular os dados de CASH do servidor.";
+				mes "Basta você me indicar o que quer fazer que eu executo a ação.";
+				mes "Porfavor escolha uma das opções.";
+				next;
+				switch(select("Adicionar CASHs","Remover CASHs","Voltar ao menu principal")) {
+ 
+					case 1:
+						mes "[ Gerente ]";
+						mes "Ok, agora preciso coletar os dados da conta do usuário que irei adicionar os CASHs.";
+						mes "Digite o Login da Conta.";
+						next;
+						input .@Conta$;
+						query_sql ("SELECT `account_id` FROM `login` WHERE `userid`='"+.@Conta$+"'",.@ContaEx);
+						if(.@ContaEx==0) {
+							mes "^FF0000***ERROR***^000000"; 
+							mes " "; 
+							mes "Você não digitou uma conta válida."; 
+							mes " "; 
+							mes "^FF0000Fechando conexão^000000"; 
+							close; 
+						}
+						query_sql ("SELECT `value` FROM `acc_reg_num_db` WHERE `key`='#CASHPOINTS' AND `account_id` = '"+.@ContaEx+"'",.@valor);
+						mes "Essa conta possui "+.@valor+" CASHs.";
+						mes "Digite a quantidade de CASH que deseja adicionar nesta conta.";
+						mes "^FF0000**Dica: Digite '0' para cancelar.^000000";
+						next;
+						input .@CASH;
+						if(.@CASH==0) { 
+							mes "Ação cancelada."; 
+							mes " "; 
+							mes "^FF0000***Fechando conexão***^000000"; 
+							close; 
+						}
+						mes "[ Gerente ]";
+						mes "Eu irei adicionar: ^FF0000"+.@CASH+"^000000 CASH's na conta: ^FF0000"+.@Conta$+"^000000.";
+						mes "Estes dados estão corretos?";
+						next;
+						if(select("Sim","Não")==2) {
+							mes "[ Gerente ]";
+							mes "Encerrando conexão...";
+							mes "Limpando dados...";
+							mes "Conexão encerrada!";
+							close;
+						}
+						if(getarraysize(.@valor)) { query_sql "UPDATE `acc_reg_num_db` SET `value` = `value` + '"+.@CASH+"' WHERE `key`='#CASHPOINTS' AND `account_id` = '"+.@ContaEx+"'";
+											}else{ query_sql "INSERT INTO `acc_reg_num_db` (`account_id`, `key`, `index`, `value`) VALUES ('"+.@ContaEx+"', '#CASHPOINTS', '0', '"+.@CASH+"')"; }
+						next;
+						mes "[ Gerente ]";
+						mes "Comando efetuado com SUCESSO!";
+						mes "CASHs adicionados.";
+						close;
+ 
+					case 2:
+						mes "[ Gerente ]";
+						mes "Ok, agora preciso coletar os dados da conta do usuário que irei remover os CASHs.";
+						mes "Digite o Login da Conta.";
+						next;
+						input .@Conta$;
+						query_sql ("SELECT `account_id` FROM `login` WHERE `userid`='"+.@Conta$+"'",.@ContaEx);
+						if(.@ContaEx==0) { 
+							mes "^FF0000***ERROR***^000000"; 
+							mes " "; 
+							mes "Você não digitou uma conta válida."; 
+							mes " "; 
+							mes "^FF0000Fechando conexão^000000"; 
+							close; 
+						}
+						mes "[ Gerente ]";
+						query_sql "SELECT `value` FROM `acc_reg_num_db` WHERE `key` ='#CASHPOINTS' AND `account_id` = '"+.@ContaEx+"'",.@valor;
+						mes "Essa conta possui "+.@valor+" CASHs.";
+						mes "Digite a quantidade de CASHs que deseja remover dessa conta.";
+						mes "^FF0000**Dica: Digite '0' para cancelar.^000000";
+						next;
+						input .@CASH;
+						if(.@CASH==0) { 
+							mes "Ação cancelada.";
+							mes " "; 
+							mes "^FF0000***Fechando conexão***^000000"; 
+							close; 
+						}
+						mes "[ Gerente ]";
+						mes "Eu irei remover: ^FF0000"+.@CASH+"^000000 CASH's da conta: ^FF0000"+.@Conta$+"^000000.";
+						mes "Estes dados estão corretos?";
+						next;
+						if(select("Sim","Não")==2) {
+							mes "[ Gerente ]";
+							mes "Encerrando conexão...";
+							mes "Limpando dados...";
+							mes "Conexão encerrada!";
+							close;
+						}
+						if(.@valor < @CASH) {
+							mes "[ Gerente ]";
+							mes "Essa conta possui um valor menor do que você solicitou.";
+							mes "Conexão encerrada";
+							close;
+						}
+						if(getarraysize(.@valor)) { query_sql "UPDATE `acc_reg_num_db` SET `value` = `value` - '"+.@CASH+"' WHERE `key`='#CASHPOINTS' AND `account_id` = '"+.@ContaEx+"'";
+						}else{ query_sql "INSERT INTO `acc_reg_num_db` (`account_id`, `key`, `index`, `value`) VALUES ('"+.@ContaEx+"', '#CASHPOINTS', '0', '"+.@CASH+"')"; }
+						next;
+						mes "[ Gerente ]";
+						mes "Comando efetuado com SUCESSO!";
+						mes "CASHs removidos.";
+						close;
+ 
+					case 3:  goto OnStartG;
+				}
+			case 3:
+				mes "[ Gerente ]";
+				mes "Nessa área posso adicionar e retirar itens da Loja de CASH.";
+				mes "Basta você me indicar o que quer fazer que eu executo a ação.";
+				mes "Porfavor escolha uma das opções.";
+				next;
+				switch(select("Adicionar Item","Retirar Item","Atualizar Itens")) {
+ 
+					case 1:
+						mes "[ Gerente ]";
+						mes "Insira o ID do item.";
+						input .@Id; 
+						next;
+						if(getitemname(.@Id) == "null") {
+							mes "[ Gerente ]";
+							mes "Não existe nenhum item com esse ID.";
+							close;
+						}
+						mes "Insira o preço do item. (Cash)";
+						input .@Qtd;
+						if(.@Qtd == 0) {
+							mes "[ Gerente ]";
+							mes "AVISO O ITEM ESTÁ SENDO VENDIDO GRATUITAMENTE!";
+						}
+						next;
+						mes "[ Gerente ]";
+						mes "Item à adicionar ao Shop:";
+						mes "^EEAD2D"+getitemname(.@Id)+"^000000";
+						mes "ID do Item: ^EEAD2D"+.@Id+"^000000";
+						mes "Preço: ^EEAD2D"+.@Qtd+" Cash's^000000";
+						next;
+						if(select("Prosseguir","Cancelar")==2) { close; }
+							query_sql ("INSERT INTO `cash_shop` (nameid,price) VALUES ("+.@Id+","+.@Qtd+")");
+							mes "[ Gerente ]";
+							mes "Item adicionado com sucesso.";
+							callfunc "UpdateShop",0;
+							close;
+						
+					case 2:
+						mes "[ Gerente ]";
+						mes "Insira o ID do item.";
+						input .@Id;
+						next;
+						query_sql ("SELECT `id`,`nameid` FROM `cash_shop` WHERE `nameid`="+.@Id,.@Id1,.@Id2);
+						mes "[ Gerente ]";
+						if(!.@Id2) {
+							mes "Este item não existe no shop.";
+							close;
+						}
+						mes "Item à retirar do Shop:";
+						mes "^EEAD2D"+getitemname(.@Id)+"^000000";
+						mes "ID do Item: ^EEAD2D"+.@Id+"^000000";
+						next;
+						if(select("Prosseguir","Cancelar")==2) { close; }
+							query_sql ("DELETE FROM `cash_shop` WHERE `nameid`="+.@Id);
+							npcshopdelitem "cash_shop",.@Id;
+							next;
+							mes "[ Gerente ]";
+							mes "Item retirado com sucesso.";
+							callfunc "UpdateShop",0;
+							close;
+						
+					case 3:
+						mes "[ Gerente ]";
+						mes "Deseja atualizar o Shop?";
+						if(select("Não","Sim")==1) { close; };
+							.@a = 1;
+							callfunc "UpdateShop",0;
+							next;
+							mes "[ Gerente ]";
+							mes "Shop atualizado com sucesso.";
+							close;
+				}
+						
+			case 4:
+				mes "[ Gerente ]";
+				mes "Nessa área tenho total poder de Banir qualquer Conta do servidor.";
+				mes "Basta você me indicar quem quer banir que eu executo a ação.";
+				mes "Porfavor escolha uma das opções.";
+				next;
+				switch(select("Banir Conta","Desbanir Conta","Ver Contas Banidas","Retornar ao menu principal")) {
+ 
+					case 1:
+						mes "[ Gerente ]";
+						mes "Ok, agora preciso coletar os dados da conta do usuário que irei Banir.";
+						mes "Digite o Login da Conta.";
+						next;
+						input @ban$;
+						query_sql ("SELECT `account_id` FROM `login` WHERE `userid`='"+@ban$+"'",.@NExiste);
+						if(!.@NExiste){
+							mes "^FF0000***ERROR***^000000"; 
+							mes " "; 
+							mes "Você não digitou uma conta válida."; 
+							mes " "; 
+							mes "^FF0000Fechando conexão^000000"; 
+							close; 
+						}
+						mes "[ Gerente ]";
+						mes "Tem certeza que quer banir a conta: ^FF0000"+@ban$+"^000000?";
+						next;
+						if(select("Sim","Não")==1) {
+							mes "Comando efetuado com SUCESSO!";
+							mes "Conta Banida.";
+							close2;
+							query_sql ("SELECT `char_id` FROM `char` WHERE `account_id`='"+.@NExiste+"'",.@Kick);
+							for(@i = 0; @i < getarraysize(.@Kick); @i++) {
+							atcommand "@kick "+.@Kick[@i];
+							}
+							query_sql ("UPDATE `login` SET `state`='5' WHERE `userid`='"+@ban$+"'");
+							end;
+						}
+						mes "[ Gerente ]";
+						mes "Encerrando conexão...";
+						mes "Limpando dados...";
+						mes "Conexão encerrada!";
+						close;
+						
+					case 2:
+						next;
+						mes "[ Gerente ]";
+						mes "Ok, agora preciso coletar os dados da conta do usuário que irei Desbanir.";
+						mes "Digite o Login da Conta.";
+						next;
+						input @ban$;
+						query_sql ("SELECT `account_id` FROM `login` WHERE `userid`='"+@ban$+"'",.@NExiste);
+						if(!.@NExiste){
+							mes "^FF0000***ERROR***^000000"; 
+							mes " "; 
+							mes "Você não digitou uma conta válida."; 
+							mes " "; 
+							mes "^FF0000Fechando conexão^000000"; 
+							close; 
+						}
+						mes "[ Gerente ]";
+						mes "Comando efetuado com SUCESSO!";
+						mes "Conta Desbanida.";
+						close2;
+						query_sql ("UPDATE `login` SET `state`='0' WHERE `userid`='"+@ban$+"'");
+						end;
+						
+					case 3:
+						query_sql("SELECT `userid` FROM `login` WHERE `state`>=5",@ban$); 
+						for(@i = 0; @i < getarraysize(@ban$); @i++) {
+							mes "-----------------------------------"; 
+							mes "| --> ^FF0000"+@nBan$[@i]+"^000000 "; 
+							} 
+							close;
+ 
+					case 4: goto OnStartG;
+				}
+				
+			case 5:
+				mes "[ Gerente ]";
+				mes "Escolha a posição de Staff que deseja adicionar.";
+				next;
+				switch(select("Administrador ^CD0000(99)^000000","Game Master ^CD0000(60)^000000","Game Helper ^CD0000(40)^000000","Retirar Staff","Retornar ao menu principal")) {
+
+					case 1: .@NvGM = 99; goto AddGM;
+					case 2: .@NvGM = 10; goto AddGM;
+					case 3: .@NvGM = 4; goto AddGM;
+					case 4: .@NvGM = 0; goto AddGM;
+					
+					AddGM:
+						mes "[ Gerente ]";
+						mes "Digite o Login da conta.";
+						next;
+						input .@ContaGM$;
+						query_sql ("SELECT `account_id` FROM `login` WHERE `userid`='"+.@ContaGM$+"'",.@nGM);
+						if(.@nGM==0) { next; mes "A conta não existe."; close; }
+						next;
+						mes "[ Gerente ]";
+						if(.@NvGM==0) mes "Estou retirando a posição de staff na conta: '"+.@ContaGM$+"'.";
+						else mes "Estou adicionando a posição de staff na conta: '"+.@ContaGM$+"'.";
+						query_sql ("UPDATE `login` SET `group_id`='"+.@NvGM+"' WHERE `userid`='"+.@ContaGM$+"'");
+						next;
+						mes "[ Gerente ]";
+						if(.@NvGM==0) mes "Pronto, retirado.";
+						else mes "Pronto, adicionado.";
+						close;
+						
+					case 5:  goto OnStartG;
+				}
+				
+			case 6:
+				next;
+				mes "[ Gerente ]";
+				mes "Ok, até mais.";
+				close;
+		}
+	}
+}
+ 
+-	script	CtrlVip	-1,{
+ 
+OnClock0001:
+		if($VipMode==2) {
+			query_sql "UPDATE `login` SET `Vip`=`Vip`-1440 WHERE `group_id`='1'";
+			sleep2 5000;
+			query_sql "UPDATE `login` SET `group_id`='0' , `Vip`='0' WHERE `Vip`<='0' AND `group_id`='1'";
+		}
+		end;
+ 
+OnPCLoginEvent:
+	if(getgroupid()==$@VipAc) { end; }
+		if(getgroupid()>=$@NvVip) { if($@ExpBonus==1) { sc_start SC_CASH_PLUSEXP,60000000,$@ExpRate[0]; } if($@ExpBonus==2) { sc_start SC_CASH_RECEIVEITEM,60000000,$@ExpRate[1]; } if($@ExpBonus==3) { sc_start SC_CASH_PLUSEXP,60000000,$@ExpRate[0]; sc_start SC_CASH_RECEIVEITEM,60000000,$@ExpRate[1]; }
+			if($@VipGratis==1) { if(#VipFree!=1) { query_sql ("UPDATE `login` SET `Vip`='"+$@VipGDias+"'*'1440' , `group_id`='"+$@NvVip+"' WHERE `account_id`="+getcharid(3)+"");
+				#VipFree = 1;
+				#VipOk = 1;
+				mes "[Sistema Vip]";
+				mes "Você acaba de ganhar "+$@VipGDias+" dias de Vip!";
+				mes "Para que a alterações sejam válidas você precisará relogar.";
+				mes "Deseja relogar agora?";
+				next;
+				if(select("Sim","Não")==2){ mes "[Sistema Vip]"; mes "Bom jogo!"; close; }
+					mes "[Sistema Vip]";
+					mes "Relogando...";
+					close2;
+					atcommand "@kick "+getcharid(0);  end; }
+			}
+		}
+		
+if($VipMode==1) {
+OnLoop:
+	query_sql ("SELECT `group_id` , `Vip` FROM `login` WHERE `account_id`='"+getcharid(3)+"'",@Out,@Vip);
+	@DiasOut = @Vip;
+	if(@CheckLog!=1) { callfunc "CheckDias",0; @CheckLog = 1; }
+		sleep2 60000;
+		query_sql ("UPDATE `login` SET `group_id`='0' WHERE `Vip`<='0' AND `group_id`='"+$@NvVip+"' AND `account_id`="+getcharid(3)+"");
+		if(@DiasOut<=0 && #VipOk==1) {
+			#VipOk = 0;
+			mes "[Sistema Vip]"; 
+			mes "Seus dias de VIP acabaram.";
+			mes "Recarregue para desfrutar das vantagens VIP.";
+			mes " ";
+			mes "Relogando conta para atualização do sistema.";
+			sleep2 5000;
+			atcommand "@kick "+getcharid(0);  end; }
+			if(@Out>=1 && @Out<=40) {
+				@DiasOut = @DiasOut-1;
+				query_sql ("UPDATE `login` SET `Vip`='"+@DiasOut+"' WHERE `account_id`="+getcharid(3)+"");
+				if(@DiasOut<=5) { callfunc "CheckDias",0; }
+				goto OnLoop;
+			}
+			goto OnLoop; end;
+}
+callfunc "CheckDias",0;
+end;
+ 
+OnPCLogoutEvent:
+	query_sql ("SELECT `Vip` , `group_id` FROM `login` WHERE `account_id`='"+getcharid(3)+"'",@Out,@Vip);
+	if(@Out<0) { query_sql ("UPDATE `login` SET `Vip`='0' WHERE `account_id`="+getcharid(3)+""); end; }
+	if(@Vip<=0) { query_sql ("UPDATE `login` SET `Vip`='0' WHERE `account_id`="+getcharid(3)+""); end; }
+	end;
+ 
+OnInit:
+	sleep2 2000;
+	for(.@c = 0;.@c < getarraysize($itens2);.@c = .@c+2){ npcshopdelitem "cash_shop",$itens2[.@c]; }
+	callfunc "UpdateShop",0;
+}
+
+function	script	CheckDias	{
+ 
+	if(@Out>=1 && @Out<=3) {
+	if(@Vip<=60 && @Vip>0) {
+		@temp = @DiasOut;
+		if(@temp<1) { dispbottom "[Sistema Vip]: Você tem alguns segundos VIP restante."; goto Retorno; end; }
+		if(@temp==1) { dispbottom "[Sistema Vip]: Você tem 1 minuto VIP restante."; goto Retorno; end; }
+						dispbottom "[Sistema Vip]: Você tem "+@temp+" minutos VIP restantes."; goto Retorno; end; }
+ 
+	if(@Vip<=1440 && @Vip>60) {
+		@temp = @DiasOut/60;
+		if(@temp==1) { dispbottom "[Sistema Vip]: Você tem 1 hora VIP restante."; goto Retorno; end; }
+						dispbottom "[Sistema Vip]: Você tem "+@temp+" horas VIP restantes."; goto Retorno; end; }
+ 
+	if(@Vip>1440) {
+		@temp = @DiasOut/1440;
+		if(@temp==1) { dispbottom "[Sistema Vip]: Você tem 1 dia VIP restante."; goto Retorno; end; }
+						dispbottom "[Sistema Vip]: Você tem "+@temp+" dias VIP restantes."; goto Retorno; end; }
+	}
+	Retorno:
+	return;
+}
+
+function	script	AddVip	{
+ 
+	query_sql "SELECT `Vip` FROM `login` WHERE `account_id`='"+getarg(0)+"'",@Out;
+	@dias = @Out+(1440*getarg(1));
+	query_sql "UPDATE `login` SET `Vip`='"+@dias+"' , `group_id`='"+$@NvVip+"' WHERE `account_id`='"+getarg(0)+"'";
+	dispbottom "[Sistema Vip]: Foram adicionados "+getarg(1)+" dias Vip com sucesso!";
+	#VipOk = 1;
+	if(getgroupid()<$@NvVip) {
+		dispbottom "[Sistema Vip]: Relogando conta para aplicar as alterações!";
+		sleep2 5000;
+		atcommand "@kick "+getcharid(0);
+	}
+}
+
+-	script	VipCmd	-1,{
+OnInit: 
+	bindatcmd "cmdvip",strnpcinfo(3)+"::OnAtcommand";
+	if($@StorageVip==1) { bindatcmd "storage",strnpcinfo(3)+"::OnAtcommand2"; }
+	end;
+ 
+OnAtcommand:
+	if(getgroupid()==$@VipAc) callfunc "Gerente#Syn",0;
+	end;
+OnAtcommand2:
+	if(getgroupid()>=1 && getgroupid()<=3) {
+		if(#passstore==1) {
+			dispbottom "Digite a senha do armazém.";
+			input @pass$;
+			if(@pass$==#pass$) { dispbottom "Acesso ao armazém liberado."; openstorage; end; }
+				dispbottom "Senha inválida."; end; }
+	}
+	openstorage; end;
+}
+
+function	script	UpdateShop	{
+	$@InitShop = 1;
+	npcshopattach "cash_shop";
+	npcshopdelitem "cash_shop",512;
+	for(.@c = 0;.@c < getarraysize($@cash_shop);.@c++){
+		npcshopdelitem "cash_shop",$@cash_shop[.@c];
+	}
+		query_sql ("SELECT `nameid` , `price` FROM `cash_shop` WHERE `id`<'129' ORDER BY `nameid` asc",$@cash_shop,$@valoritem);
+		for(.@i = 0;.@i!=getarraysize($@cash_shop);.@i++) {
+			npcshopadditem "cash_shop",$@cash_shop[.@i],$@valoritem[.@i];
+		}
+			if(getarraysize($@cash_shop)>=128) {
+				query_sql ("SELECT `nameid` , `price` FROM `cash_shop` WHERE `id`>'127' ORDER BY `nameid` asc",$@cash_shop2,$@valoritem2);
+				for(.@i = 0;.@i!=getarraysize($@cash_shop2);.@i++) {
+					npcshopadditem "cash_shop",$@cash_shop2[.@i],$@valoritem2[.@i];
+				}
+			} return;
+}
+ 
+-	cashshop	cash_shop	-1,512:100
