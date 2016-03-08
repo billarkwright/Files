@@ -1,0 +1,20 @@
+// Pasta Cliente:
+Contém os arquivos necessários para a reprodução dos sons.
+
+// Pasta Emulador:
+Está o arquivo relacionados ao Emulador.
+------- Script
+
+// Instalação
+----------------------------------------------------------------------------------
+|| --------
+
+Instale o Script 'Narrador.txt' que está na pasta 'Emulador' como qualquer outro NPC,
+lembrando de colocar nos arquivos de incializaçao dos Scripts.
+
+
+|| --------
+
+Copie todo o conteúdo da pasta e cole respectivamente no seu devido lugar.
+
+data/wav/...
